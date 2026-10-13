@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('reports', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
+            $table->foreignId('data_source_id')->constrained('data_sources')->onDelete('cascade'); 
+            $table->string('tytul');           
+            $table->string('typ_wykresu');     
+            $table->json('ustawienia_wykresu'); 
             $table->timestamps();
         });
     }

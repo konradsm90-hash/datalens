@@ -11,8 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
-        //
+    ->withMiddleware(function (Middleware $middleware) {
+        // Rejestracja globalnego middleware doklejającego pasek nawigacji do wszystkich stron HTML
+        $middleware->web(append: [
+            \App\Http\Middleware\InjectNavbar::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
