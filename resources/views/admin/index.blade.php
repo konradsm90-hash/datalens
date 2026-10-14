@@ -91,5 +91,30 @@
             @endforeach
         </table>
     </div>
+        <div class="box" style="margin-top: 30px;">
+        <h3>📜 Ostatnia historia modyfikacji danych</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Użytkownik</th>
+                    <th>Plik / Źródło</th>
+                    <th>Akcja</th>
+                    <th>Szczegóły</th>
+                    <th>Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($historia as $wpis)
+                    <tr>
+                        <td>{{ $wpis->user->name ?? 'Nieznany' }}</td>
+                        <td>{{ $wpis->dataSource->nazwa ?? 'Usunięte źródło' }}</td>
+                        <td><span style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px;">{{ $wpis->akcja }}</span></td>
+                        <td><small>{{ $wpis->szczegoly }}</small></td>
+                        <td>{{ $wpis->created_at->format('Y-m-d H:i') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>

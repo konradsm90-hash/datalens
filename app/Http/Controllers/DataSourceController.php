@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\DataSource;
 use App\Models\Report;
+use App\Models\DataHistory;
 use App\Jobs\PrzetworzPlikDanych;
 
 class DataSourceController extends Controller
@@ -220,5 +221,75 @@ class DataSourceController extends Controller
         }
 
         return view('raporty.pdf', compact('raport', 'plik', 'etykiety', 'wartosci'));
+    }
+
+ public function dodajRekord(Request $request, $id)
+{
+    $plik = DataSource::findOrFail($id);
+    $sciezkaAbsolutna = storage_path('app/public/' . $plik->sciezka_do_pliku);
+
+    if (!file_exists($sciezkaAbsolutna)) {
+        return redirect()->back()->with('blad', 'Plik nie istnieje.');
+    }
+
+    $separator = $plik->struktura_kolumn['separator'] ?? ',';
+    
+    // Odczytujemy nagłówki pliku, aby znać poprawną kolejność kolumn
+    $naglowki = [];
+    if (($handle = fopen($sciezkaAbsolutna, 'r')) !== FALSE) {
+        $naglowki = fgetcsv($handle, 1000, $separator);
+        fclose($handle);
+    }
+
+    if (empty($naglowki)) {
+        return redirect()->back()->with('blad', 'Nie udało się odczytać struktury pliku.');
+    }
+
+    // Układamy dane w takiej kolejności, w jakiej są nagłówki w pliku
+    $daneDoZapisu = [];
+    $inputy = $request->except(['_token', 'data_source_id']);
+    
+    foreach ($naglowki as $naglowek) {
+        $daneDoZapisu[] = $inputy[$naglowek] ?? '';
+    }
+
+    // Dopisujemy poprawnie ułożony wiersz do pliku CSV
+    $handle = fopen($sciezkaAbsolutna, 'a');
+    fputcsv($handle, $daneDoZapisu, $separator);
+    fclose($handle);
+
+    // AKTUALIZACJA LICZNIKA WIERSZY W BAZIE DANYCH
+    $struktura = $plik->struktura_kolumn ?? [];
+    // Pobieramy obecną wartość lub liczymy od nowa, a następnie zwiększamy o 1
+    $aktualneWiersze = $struktura['calkowite_wiersze'] ?? count(file($sciezkaAbsolutna)) - 1;
+    $struktura['calkowite_wiersze'] = $aktualneWiersze + 1;
+    
+    $plik->update([
+        'struktura_kolumn' => $struktura
+    ]);
+
+    // Zapis do historii w panelu admina
+    DataHistory::create([
+        'user_id' => auth()->id(),
+        'data_source_id' => $plik->id,
+        'akcja' => 'Dodanie nowego rekordu',
+        'szczegoly' => json_encode($daneDoZapisu)
+    ]);
+
+    return redirect()->back()->with('sukces', 'Nowy rekord został poprawnie dodany!');
+}
+
+    public function eksportCsv($id)
+    {
+        $plik = DataSource::findOrFail($id);
+        $sciezkaAbsolutna = storage_path('app/public/' . $plik->sciezka_do_pliku);
+
+        if (!file_exists($sciezkaAbsolutna)) {
+            return redirect()->back()->with('blad', 'Plik nie istnieje.');
+        }
+
+        return response()->download($sciezkaAbsolutna, 'zrodlo_' . $plik->id . '.csv', [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 }
